@@ -1,7 +1,7 @@
 import AppKit
 import Common
 
-class TreeNode: Equatable {
+open class TreeNode: Equatable, AeroAny {
     private var _children: [TreeNode] = []
     var children: [TreeNode] { _children }
     fileprivate final weak var _parent: NonLeafTreeNodeObject? = nil
@@ -75,7 +75,7 @@ class TreeNode: Equatable {
         if adaptiveWeight == WEIGHT_AUTO {
             self.adaptiveWeight = switch relation {
                 case .tiling(let newParent):
-                    CGFloat(newParent.children.sumOf { $0.getWeight(newParent.orientation) }).div(newParent.children.count) ?? 1
+                    CGFloat(newParent.children.sumOfDouble { $0.getWeight(newParent.orientation) }).div(newParent.children.count) ?? 1
                 case .floatingWindow, .macosNativeFullscreenWindow,
                      .rootTilingContainer, .macosNativeMinimizedWindow,
                      .shimContainerRelation, .macosPopupWindow, .macosNativeHiddenAppWindow:
@@ -122,7 +122,7 @@ class TreeNode: Equatable {
         unbindIfBound() ?? dieT("\(self) is already unbound. The stacktrace where it was unbound:\n\(unboundStacktrace ?? "nil")")
     }
 
-    nonisolated static func == (lhs: TreeNode, rhs: TreeNode) -> Bool {
+    public nonisolated static func == (lhs: TreeNode, rhs: TreeNode) -> Bool {
         lhs === rhs
     }
 
@@ -153,7 +153,7 @@ struct BindingData {
     let index: Int
 }
 
-class NilTreeNode: TreeNode, NonLeafTreeNodeObject {
+final class NilTreeNode: TreeNode, NonLeafTreeNodeObject {
     override private init() {
         super.init()
     }

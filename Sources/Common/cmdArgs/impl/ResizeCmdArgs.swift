@@ -1,30 +1,30 @@
 public struct ResizeCmdArgs: CmdArgs {
-    public let rawArgs: EquatableNoop<[String]>
-    fileprivate init(rawArgs: [String]) { self.rawArgs = .init(rawArgs) }
+    public let rawArgsForStrRepr: EquatableNoop<StrArrSlice>
+    fileprivate init(rawArgs: StrArrSlice) { self.rawArgsForStrRepr = .init(rawArgs) }
     public static let parser: CmdParser<Self> = cmdParser(
         kind: .resize,
         allowInConfig: true,
         help: resize_help_generated,
-        options: [
+        flags: [
             "--window-id": optionalWindowIdFlag(),
         ],
-        arguments: [
+        posArgs: [
             newArgParser(\.dimension, parseDimension, mandatoryArgPlaceholder: "(smart|smart-opposite|width|height)"),
             newArgParser(\.units, parseUnits, mandatoryArgPlaceholder: "[+|-]<number>"),
-        ]
+        ],
     )
 
     public var dimension: Lateinit<ResizeCmdArgs.Dimension> = .uninitialized
     public var units: Lateinit<ResizeCmdArgs.Units> = .uninitialized
-    public var windowId: UInt32?
-    public var workspaceName: WorkspaceName?
+    /*conforms*/ public var windowId: UInt32?
+    /*conforms*/ public var workspaceName: WorkspaceName?
 
     public init(
         rawArgs: [String],
         dimension: Dimension,
-        units: Units
+        units: Units,
     ) {
-        self.rawArgs = .init(rawArgs)
+        self.rawArgsForStrRepr = .init(rawArgs.slice)
         self.dimension = .initialized(dimension)
         self.units = .initialized(units)
     }
@@ -38,25 +38,69 @@ public struct ResizeCmdArgs: CmdArgs {
         case set(UInt)
         case add(UInt)
         case subtract(UInt)
+        case setPercent(UInt)
+        case addPercent(UInt)
+        case subtractPercent(UInt)
     }
 }
 
-public func parseResizeCmdArgs(_ args: [String]) -> ParsedCmd<ResizeCmdArgs> {
+public func parseResizeCmdArgs(_ args: StrArrSlice) -> ParsedCmd<ResizeCmdArgs> {
     parseSpecificCmdArgs(ResizeCmdArgs(rawArgs: args), args)
 }
 
-private func parseDimension(arg: String, nextArgs: inout [String]) -> Parsed<ResizeCmdArgs.Dimension> {
-    parseEnum(arg, ResizeCmdArgs.Dimension.self)
+private func parseDimension(i: ArgParserInput) -> ParsedCliArgs<ResizeCmdArgs.Dimension> {
+    .init(parseEnum(i.arg, ResizeCmdArgs.Dimension.self), advanceBy: 1)
 }
 
-private func parseUnits(arg: String, nextArgs: inout [String]) -> Parsed<ResizeCmdArgs.Units> {
-    if let number = UInt(arg.removePrefix("+").removePrefix("-")) {
-        switch () {
-            case _ where arg.starts(with: "+"): .success(.add(number))
-            case _ where arg.starts(with: "-"): .success(.subtract(number))
-            default: .success(.set(number))
+private func parseUnits(i: ArgParserInput) -> ParsedCliArgs<ResizeCmdArgs.Units> {
+    // Check if it's a percentage
+    if i.arg.hasSuffix("%") {
+        let valueStr = i.arg.dropLast()
+
+        // Check for empty percentage
+        if valueStr.isEmpty {
+            return .fail("Invalid percentage format", advanceBy: 1)
+        }
+
+        // Check if it contains a decimal point
+        if valueStr.contains(".") {
+            return .fail("Percentage must be a whole number", advanceBy: 1)
+        }
+
+        // Try to parse the percentage value
+        let withoutPrefix = valueStr.hasPrefix("+") || valueStr.hasPrefix("-")
+            ? String(valueStr.dropFirst())
+            : String(valueStr)
+
+        guard let number = UInt(withoutPrefix) else {
+            return .fail("Invalid percentage format", advanceBy: 1)
+        }
+
+        // Check bounds for absolute percentages
+        if !valueStr.hasPrefix("+") && !valueStr.hasPrefix("-") && number > 100 {
+            return .fail("Percentage must be between 0 and 100", advanceBy: 1)
+        }
+
+        // Check bounds for relative percentages (can't result in negative or > 100)
+        if valueStr.hasPrefix("-") && number > 100 {
+            return .fail("Percentage must be between 0 and 100", advanceBy: 1)
+        }
+
+        return switch true {
+            case valueStr.hasPrefix("+"): .succ(.addPercent(number), advanceBy: 1)
+            case valueStr.hasPrefix("-"): .succ(.subtractPercent(number), advanceBy: 1)
+            default: .succ(.setPercent(number), advanceBy: 1)
         }
     } else {
-        .failure("<number> argument must be a number")
+        // Original pixel parsing logic
+        if let number = UInt(i.arg.removePrefix("+").removePrefix("-")) {
+            return switch true {
+                case i.arg.starts(with: "+"): .succ(.add(number), advanceBy: 1)
+                case i.arg.starts(with: "-"): .succ(.subtract(number), advanceBy: 1)
+                default: .succ(.set(number), advanceBy: 1)
+            }
+        } else {
+            return .fail("<number> argument must be a number", advanceBy: 1)
+        }
     }
 }

@@ -21,7 +21,7 @@ struct LiveFocus: AeroAny, Equatable {
         return FrozenFocus(
             windowId: windowOrNil?.windowId,
             workspaceName: workspace.name,
-            monitorId: workspace.workspaceMonitor.monitorId ?? 0
+            monitorId: workspace.workspaceMonitor.monitorId ?? 0,
         )
     }
 }
@@ -184,6 +184,6 @@ extension Workspace {
         environment["AEROSPACE_FOCUSED_WORKSPACE"] = newWorkspace
         environment["AEROSPACE_PREV_WORKSPACE"] = oldWorkspace
         process.environment = environment
-        Result { try process.run() }.getOrDie() // todo It's not perfect to fail here
+        _ = Result { try process.run() }
     }
 }

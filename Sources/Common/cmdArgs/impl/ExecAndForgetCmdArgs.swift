@@ -1,11 +1,11 @@
 public struct ExecAndForgetCmdArgs: CmdArgs {
-    public var rawArgs: EquatableNoop<[String]> { .init([bashScript]) }
+    public var rawArgsForStrRepr: EquatableNoop<StrArrSlice> { .init([bashScript]) }
     public static let parser: CmdParser<Self> = cmdParser(
         kind: .execAndForget,
         allowInConfig: true,
         help: exec_and_forget_help_generated,
-        options: [:],
-        arguments: []
+        flags: [:],
+        posArgs: [],
     )
 
     public init(bashScript: String) {
@@ -13,6 +13,6 @@ public struct ExecAndForgetCmdArgs: CmdArgs {
     }
 
     public let bashScript: String
-    public var windowId: UInt32?
-    public var workspaceName: WorkspaceName?
+    /*conforms*/ public var windowId: UInt32?
+    /*conforms*/ public var workspaceName: WorkspaceName?
 }

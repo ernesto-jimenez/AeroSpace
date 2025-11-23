@@ -53,11 +53,11 @@
   "Aero.App.versionShort" : null,
   "Aero.AxIgnored" : "AXChildrenInNavigationOrder, AXChildren, AXRoleDescription",
   "Aero.axWindowId" : 14286,
-  "Aero.isDialogHeuristic" : true,
-  "Aero.isWindowHeuristic" : false, // todo fix?
+  "Aero.AxUiElementWindowType_isDialogHeuristic" : true,
+  "Aero.AxUiElementWindowType" : "popup", // todo fix?
   "Aero.on-window-detected" : [
 
   ],
   "Aero.treeNodeParent" : "AppBundle.MacosPopupWindowsContainer",
-  "Aero.workspace" : "nil"
+  "Aero.workspace" : null
 }

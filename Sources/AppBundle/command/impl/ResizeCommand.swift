@@ -3,6 +3,7 @@ import Common
 
 struct ResizeCommand: Command { // todo cover with tests
     let args: ResizeCmdArgs
+    /*conforms*/ var shouldResetClosedWindowsCache = true
 
     func run(_ env: CmdEnv, _ io: CmdIo) -> Bool {
         guard let target = args.resolveTargetOrReportError(env, io) else { return false }
@@ -32,13 +33,27 @@ struct ResizeCommand: Command { // todo cover with tests
                 node = candidates.first(where: { ($0.parent as? TilingContainer)?.orientation == orientation })
                 parent = node?.parent as? TilingContainer
         }
-        guard let parent else { return false }
+        guard let parent else { return io.err("resize command doesn't support floating windows yet https://github.com/nikitabobko/AeroSpace/issues/9") }
         guard let orientation else { return false }
         guard let node else { return false }
+
+        // Get the monitor dimensions for percentage calculations
+        let monitor = node.nodeWorkspace?.workspaceMonitor ?? mainMonitor
+        let monitorDimension = orientation == .h ? monitor.visibleRect.width : monitor.visibleRect.height
+
         let diff: CGFloat = switch args.units.val {
             case .set(let unit): CGFloat(unit) - node.getWeight(orientation)
             case .add(let unit): CGFloat(unit)
             case .subtract(let unit): -CGFloat(unit)
+            case .setPercent(let percent): (
+                    monitorDimension * (CGFloat(percent) / 100.0) - node.getWeight(orientation)
+                )
+            case .addPercent(let percent): (
+                    monitorDimension * (CGFloat(percent) / 100.0)
+                )
+            case .subtractPercent(let percent): (
+                    -monitorDimension * (CGFloat(percent) / 100.0)
+                )
         }
 
         guard let childDiff = diff.div(parent.children.count - 1) else { return false }

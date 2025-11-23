@@ -20,9 +20,10 @@ aerospace -h;
 
     | flatten-workspace-tree [--workspace <workspace>]
 
-    | focus [<focus_flag>]... (left|down|up|right) [<focus_flag>]...
+    | focus [<focus_direction_flag>]... (left|down|up|right) [<focus_direction_flag>]...
     | focus --window-id <window_id>
     | focus --dfs-index <number>
+    | focus [<focus_dfs_relative_flag>]... (dfs-next|dfs-prev) [<focus_dfs_relative_flag>]...
 
     | focus-back-and-forth
 
@@ -44,14 +45,14 @@ aerospace -h;
 
     | mode <mode_id>
 
-    | move [--window-id <window_id>] (left|down|up|right) [--window-id <window_id>]
+    | move [<move_command_flag>]... (left|down|up|right) [<move_command_flag>]...
 
     | move-mouse [--fail-if-noop] (monitor-lazy-center|monitor-force-center|window-lazy-center|window-force-center) [--fail-if-noop]
 
     | move-node-to-monitor [<move_node_to_monitor1_flag>]... (left|down|up|right|next|prev) [<move_node_to_monitor1_flag>]...
     | move-node-to-monitor [<move_node_to_monitor2_flag>]... <monitor_pattern>... [<move_node_to_monitor2_flag>]...
 
-    | move-node-to-workspace [--wrap-around|--focus-follows-window]... (next|prev) [--wrap-around|--focus-follows-window]...
+    | move-node-to-workspace [--wrap-around|--focus-follows-window|--stdin|--no-stdin]... (next|prev) [--wrap-around|--focus-follows-window|--stdin|--no-stdin]...
     | move-node-to-workspace [--fail-if-noop|--window-id <window_id>|--focus-follows-window]... <workspace> [--fail-if-noop|--window-id <window_id>|--focus-follows-window]...
 
     | move-workspace-to-monitor [--wrap-around] (left|down|up|right|next|prev) [--wrap-around]
@@ -63,6 +64,8 @@ aerospace -h;
 
     | split [--window-id <window_id>] (horizontal|vertical|opposite) [--window-id <window_id>]
 
+    | swap [--swap-focus|--wrap-around|--window-id <window_id>]... (left|down|up|right|dfs-next|dfs-prev) [--swap-focus|--wrap-around|--window-id <window_id>]...
+
     | summon-workspace [--fail-if-noop] <workspace> [--fail-if-noop]
 
     | trigger-binding <binding> --mode <mode_id>
@@ -73,7 +76,7 @@ aerospace -h;
     | volume set <number>
 
     | workspace [--auto-back-and-forth|--fail-if-noop]... <workspace> [--auto-back-and-forth|--fail-if-noop]...
-    | workspace [--wrap-around] (next|prev) [--wrap-around]
+    | workspace [--wrap-around|--stdin|--no-stdin] (next|prev) [--wrap-around|--stdin|--no-stdin]
 
     | workspace-back-and-forth
 
@@ -88,7 +91,7 @@ aerospace -h;
 
     | list-exec-env-vars
 
-    | list-modes [--current]
+    | list-modes [--current|--json|--count]...
 
     | list-monitors [--focused [no] | --mouse [no] | --format <output_format> | --count | --json]...
 
@@ -108,10 +111,14 @@ aerospace -h;
 
 <list_workspaces1_flag> ::= --visible [no] | --empty [no] | --format <output_format> | --format <output_format> | --count | --json;
 
+<move_command_flag> ::= --window-id <window_id> | --boundaries <boundary> | --boundaries-action <move_boundaries_action>;
+<move_boundaries_action> ::= stop|fail|create-implicit-container;
+
 <move_node_to_monitor1_flag> ::= --window-id <window_id>|--focus-follows-window|--fail-if-noop|--wrap-around;
 <move_node_to_monitor2_flag> ::= --window-id <window_id>|--focus-follows-window|--fail-if-noop;
 
-<focus_flag> ::= --boundaries <boundary>|--boundaries-action <boundaries_action>|--ignore-floating;
+<focus_direction_flag> ::= --boundaries <boundary>|--boundaries-action <boundaries_action>|--ignore-floating;
+<focus_dfs_relative_flag> ::= --boundaries-action <boundaries_action>|--ignore-floating;
 <boundaries_action> ::= stop|fail|wrap-around-the-workspace|wrap-around-all-monitors;
 <boundary> ::= workspace|all-monitors-outer-frame;
 

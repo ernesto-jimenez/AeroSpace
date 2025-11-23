@@ -3,6 +3,7 @@ import Common
 
 struct ConfigCommand: Command {
     let args: ConfigCmdArgs
+    /*conforms*/ var shouldResetClosedWindowsCache = false
 
     func run(_ env: CmdEnv, _ io: CmdIo) -> Bool {
         switch args.mode {
@@ -26,8 +27,8 @@ struct ConfigCommand: Command {
     }
 }
 
-private extension String {
-    func toKeyPath() -> Result<[String], String> {
+extension String {
+    fileprivate func toKeyPath() -> Result<[String], String> {
         if self == "." { return .success([]) }
         if isEmpty { return .failure("Invalid empty key") }
         if self.contains("..") { return .failure("Invalid key '\(self)'") }
@@ -44,7 +45,7 @@ private extension String {
             return io.err(error)
     }
     var configMap: ConfigMapValue
-    switch buildConfigMap().find(keyPath: keyPath) {
+    switch buildConfigMap().find(keyPath: keyPath.slice) {
         case .success(let value):
             configMap = value
         case .failure(let error):
@@ -90,21 +91,21 @@ private extension String {
 }
 
 extension ConfigMapValue {
-    func find(keyPath: [String]) -> Result<ConfigMapValue, String> {
+    func find(keyPath: StrArrSlice) -> Result<ConfigMapValue, String> {
         if let key = keyPath.first {
             switch self {
                 case .scalar(let scalar):
                     return .failure("Can't dereference scalar value '\(scalar.describe)'")
                 case .map(let map):
                     if let child = map[key] {
-                        return child.find(keyPath: Array(keyPath[1...]))
+                        return child.find(keyPath: keyPath.slice(1...).orDie())
                     } else {
                         return .failure("No value at key token '\(key)'")
                     }
                 case .array(let array):
                     if let key = Int(key) {
                         if let child = array.getOrNil(atIndex: key) {
-                            return child.find(keyPath: Array(keyPath[1...]))
+                            return child.find(keyPath: keyPath.slice(1...).orDie())
                         } else {
                             return .failure("Index out of bounds. Index: \(key), Size: \(array.count)")
                         }

@@ -3,7 +3,8 @@ import Common
 import HotKey
 
 func getDefaultConfigUrlFromProject() -> URL {
-    var url = URL(filePath: #file)
+    var url = URL(filePath: #filePath)
+    check(FileManager.default.fileExists(atPath: url.path))
     while !FileManager.default.fileExists(atPath: url.appending(component: ".git").path) {
         url.deleteLastPathComponent()
     }
@@ -21,7 +22,7 @@ var defaultConfigUrl: URL {
     }
 }
 @MainActor let defaultConfig: Config = {
-    let parsedConfig = parseConfig(try! String(contentsOf: defaultConfigUrl))
+    let parsedConfig = parseConfig((try? String(contentsOf: defaultConfigUrl)).orDie())
     if !parsedConfig.errors.isEmpty {
         die("Can't parse default config: \(parsedConfig.errors)")
     }
@@ -40,7 +41,7 @@ struct Config: ConvenienceCopyable {
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
     var startAtLogin: Bool = false
     var automaticallyUnhideMacosHiddenApps: Bool = false
-    var accordionPadding: Int = 30
+    var accordionPadding: DimensionValue = .pixels(30)
     var enableNormalizationOppositeOrientationForNestedContainers: Bool = true
     var execOnWorkspaceChange: [String] = [] // todo deprecate
     var keyMapping = KeyMapping()

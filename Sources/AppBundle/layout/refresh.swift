@@ -7,10 +7,8 @@ private var activeRefreshTask: Task<(), any Error>? = nil
 @MainActor
 func runRefreshSession(
     _ event: RefreshSessionEvent,
-    screenIsDefinitelyUnlocked: Bool, // todo rename
     optimisticallyPreLayoutWorkspaces: Bool = false,
 ) {
-    if screenIsDefinitelyUnlocked { resetClosedWindowsCache() }
     activeRefreshTask?.cancel()
     activeRefreshTask = Task { @MainActor in
         try checkCancellation()
@@ -40,6 +38,7 @@ func runRefreshSessionBlocking(
             gcMonitors()
 
             updateTrayText()
+            SecureInputPanel.shared.refresh()
             try await normalizeLayoutReason()
             if shouldLayoutWorkspaces { try await layoutWorkspaces() }
         }
@@ -50,7 +49,7 @@ func runRefreshSessionBlocking(
 func runSession<T>(
     _ event: RefreshSessionEvent,
     _ token: RunSessionGuard,
-    body: @MainActor () async throws -> T
+    body: @MainActor () async throws -> T,
 ) async throws -> T {
     let state = signposter.beginInterval(#function, "event: \(event) axTaskLocalAppThreadToken: \(axTaskLocalAppThreadToken?.idForDebug)")
     defer { signposter.endInterval(#function, state) }
@@ -58,8 +57,6 @@ func runSession<T>(
     activeRefreshTask = nil
     return try await $refreshSessionEvent.withValue(event) {
         try await $_isStartup.withValue(event.isStartup) {
-            resetClosedWindowsCache()
-
             let nativeFocused = try await getNativeFocusedWindow()
             if let nativeFocused { try await debugWindowsIfRecording(nativeFocused) }
             updateFocusCache(nativeFocused)
@@ -72,11 +69,12 @@ func runSession<T>(
             let focusAfter = focus.windowOrNil
 
             updateTrayText()
+            SecureInputPanel.shared.refresh()
             try await layoutWorkspaces()
             if focusBefore != focusAfter {
                 focusAfter?.nativeFocus() // syncFocusToMacOs
             }
-            runRefreshSession(event, screenIsDefinitelyUnlocked: false)
+            runRefreshSession(event)
             return result
         }
     }
@@ -127,7 +125,7 @@ func refreshObs(_ obs: AXObserver, ax: AXUIElement, notif: CFString, data: Unsaf
     let notif = notif as String
     Task { @MainActor in
         if !TrayMenuModel.shared.isEnabled { return }
-        runRefreshSession(.ax(notif), screenIsDefinitelyUnlocked: false)
+        runRefreshSession(.ax(notif))
     }
 }
 
@@ -159,9 +157,12 @@ private func layoutWorkspaces() async throws {
         let blc2 = monitor.rect.bottomLeftCorner + CGPoint(x: xOff, y: 2)
         let blc3 = monitor.rect.bottomLeftCorner + CGPoint(x: -2, y: 2)
 
+        func contains(_ monitor: Monitor, _ point: CGPoint) -> Int { monitor.rect.contains(point) ? 1 : 0 }
+        let important = 10
+
         let corner: OptimalHideCorner =
-            monitors.contains(where: { m in m.rect.contains(brc1) || m.rect.contains(brc2) || m.rect.contains(brc3) }) &&
-            monitors.allSatisfy { m in !m.rect.contains(blc1) && !m.rect.contains(blc2) && !m.rect.contains(blc3) }
+            monitors.sumOfInt { contains($0, blc1) + contains($0, blc2) + important * contains($0, blc3) } <
+            monitors.sumOfInt { contains($0, brc1) + contains($0, brc2) + important * contains($0, brc3) }
             ? .bottomLeftCorner
             : .bottomRightCorner
         monitorToOptimalHideCorner[monitor.rect.topLeftCorner] = corner

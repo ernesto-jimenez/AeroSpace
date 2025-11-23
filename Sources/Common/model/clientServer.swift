@@ -1,5 +1,8 @@
 import Foundation
 
+// TO EVERYONE REVERSE-ENGINEERING THE PROTOCOL
+// client-server socket API is not public yet.
+// Tracking issue for making it public: https://github.com/nikitabobko/AeroSpace/issues/1513
 public struct ServerAnswer: Codable, Sendable {
     public let exitCode: Int32
     public let stdout: String
@@ -10,7 +13,7 @@ public struct ServerAnswer: Codable, Sendable {
         exitCode: Int32,
         stdout: String = "",
         stderr: String = "",
-        serverVersionAndHash: String
+        serverVersionAndHash: String,
     ) {
         self.exitCode = exitCode
         self.stdout = stdout
@@ -19,14 +22,17 @@ public struct ServerAnswer: Codable, Sendable {
     }
 }
 
+// TO EVERYONE REVERSE-ENGINEERING THE PROTOCOL
+// client-server socket API is not public yet.
+// Tracking issue for making it public: https://github.com/nikitabobko/AeroSpace/issues/1513
 public struct ClientRequest: Codable, Sendable {
-    public let command: String // Unused. keep it for API compatibility with old servers for a couple of version
+    public var command: String? // Unused. keep it for API compatibility with old servers for a couple of version
     public let args: [String]
     public let stdin: String
 
     public init(
         args: [String],
-        stdin: String
+        stdin: String,
     ) {
         if args.contains(where: { $0.rangeOfCharacter(from: .whitespacesAndNewlines) != nil || $0.contains("\"") || $0.contains("\'") }) {
             self.command = "" // Old server won't understand it anyway
@@ -35,5 +41,9 @@ public struct ClientRequest: Codable, Sendable {
         }
         self.args = args
         self.stdin = stdin
+    }
+
+    public static func decodeJson(_ data: Data) -> Result<ClientRequest, String> {
+        Result { try JSONDecoder().decode(Self.self, from: data) }.mapError { $0.localizedDescription }
     }
 }

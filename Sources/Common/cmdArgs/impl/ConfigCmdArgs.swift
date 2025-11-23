@@ -1,18 +1,18 @@
 public struct ConfigCmdArgs: CmdArgs, Equatable {
-    public let rawArgs: EquatableNoop<[String]>
+    public let rawArgsForStrRepr: EquatableNoop<StrArrSlice>
     public static let parser: CmdParser<Self> = cmdParser(
         kind: .config,
         allowInConfig: false,
         help: config_help_generated,
-        options: [
+        flags: [
             "--json": trueBoolFlag(\.json),
             "--keys": trueBoolFlag(\.keys),
             "--major-keys": trueBoolFlag(\.majorKeys),
             "--all-keys": trueBoolFlag(\.allKeys),
             "--config-path": trueBoolFlag(\.configPath),
-            "--get": singleValueOption(\.keyNameToGet, "<name>") { $0 },
+            "--get": singleValueSubArgParser(\.keyNameToGet, "<name>") { $0 },
         ],
-        arguments: []
+        posArgs: [],
     )
 
     public var json: Bool = false
@@ -21,16 +21,16 @@ public struct ConfigCmdArgs: CmdArgs, Equatable {
     public var allKeys: Bool = false
     public var configPath: Bool = false
     public var keyNameToGet: String? = nil
-    public var windowId: UInt32?
-    public var workspaceName: WorkspaceName?
+    /*conforms*/ public var windowId: UInt32?
+    /*conforms*/ public var workspaceName: WorkspaceName?
 }
 
-public extension ConfigCmdArgs {
-    enum Mode {
+extension ConfigCmdArgs {
+    public enum Mode {
         case getKey(key: String), majorKeys, allKeys, configPath
     }
 
-    var mode: Mode {
+    public var mode: Mode {
         if let keyNameToGet { return .getKey(key: keyNameToGet) }
         if majorKeys { return .majorKeys }
         if allKeys { return .allKeys }
@@ -39,8 +39,8 @@ public extension ConfigCmdArgs {
     }
 }
 
-public func parseConfigCmdArgs(_ args: [String]) -> ParsedCmd<ConfigCmdArgs> {
-    parseSpecificCmdArgs(ConfigCmdArgs(rawArgs: .init(args)), args)
+public func parseConfigCmdArgs(_ args: StrArrSlice) -> ParsedCmd<ConfigCmdArgs> {
+    parseSpecificCmdArgs(ConfigCmdArgs(rawArgsForStrRepr: .init(args)), args)
         .flatMap { raw in
             var conflicting: Set<String> = []
             if raw.keyNameToGet != nil { conflicting.insert("--get") }

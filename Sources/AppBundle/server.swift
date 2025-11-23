@@ -21,8 +21,9 @@ private func handleConnectionAsync(_ connection: sending Socket) {
     Task { await newConnection(connection) }
 }
 
-func sendCommandToReleaseServer(args: [String]) {
-    check(isDebug)
+func toggleReleaseServerIfDebug(_ state: EnableCmdArgs.State) {
+    if serverArgs.isReadOnly { return }
+    if !isDebug { return }
     let socket = Result { try Socket.create(family: .unix, type: .stream, proto: .unix) }.getOrDie()
     defer {
         socket.close()
@@ -32,7 +33,7 @@ func sendCommandToReleaseServer(args: [String]) {
         return
     }
 
-    _ = try? socket.write(from: Result { try JSONEncoder().encode(ClientRequest(args: args, stdin: "")) }.getOrDie())
+    _ = try? socket.write(from: Result { try JSONEncoder().encode(ClientRequest(args: ["enable", state.rawValue], stdin: "")) }.getOrDie())
     _ = try? Socket.wait(for: [socket], timeout: 0, waitForever: true)
     _ = try? socket.readString()
 }
@@ -57,14 +58,14 @@ private func newConnection(_ socket: Socket) async { // todo add exit codes
             answerToClient(exitCode: 1, stderr: "Empty request")
             return
         }
-        let _request = tryCatch(body: { try JSONDecoder().decode(ClientRequest.self, from: rawRequest) })
+        let _request = ClientRequest.decodeJson(rawRequest)
         guard let request: ClientRequest = _request.getOrNil() else {
             answerToClient(
                 exitCode: 1,
                 stderr: """
-                    Can't parse request '\(String(describing: String(data: rawRequest, encoding: .utf8)))'.
-                    Error: \(String(describing: _request.errorOrNil))
-                    """
+                    Can't parse request '\(String(describing: String(data: rawRequest, encoding: .utf8)).singleQuoted)'.
+                    Error: \(_request.failureOrNil.prettyDescription)
+                    """,
             )
             continue
         }
@@ -73,7 +74,7 @@ private func newConnection(_ socket: Socket) async { // todo add exit codes
             answerToClient(
                 exitCode: 1,
                 stderr: "\(aeroSpaceAppName) server is disabled and doesn't accept commands. " +
-                    "You can use 'aerospace enable on' to enable the server"
+                    "You can use 'aerospace enable on' to enable the server",
             )
             continue
         }
@@ -97,15 +98,15 @@ private func newConnection(_ socket: Socket) async { // todo add exit codes
                         exitCode: cmdResult.exitCode,
                         stdout: cmdResult.stdout.joined(separator: "\n"),
                         stderr: cmdResult.stderr.joined(separator: "\n"),
-                        serverVersionAndHash: serverVersionAndHash
+                        serverVersionAndHash: serverVersionAndHash,
                     )
                 }
             }.result
             let answer = _answer.getOrNil() ??
                 ServerAnswer(
                     exitCode: 1,
-                    stderr: "Fail to await main thread. \(_answer.errorOrNil?.localizedDescription ?? "")",
-                    serverVersionAndHash: serverVersionAndHash
+                    stderr: "Fail to await main thread. \(_answer.failureOrNil?.localizedDescription ?? "")",
+                    serverVersionAndHash: serverVersionAndHash,
                 )
             answerToClient(answer)
             continue

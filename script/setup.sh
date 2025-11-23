@@ -4,6 +4,9 @@ set -u # Treat unset variables and parameters other than the special parameters 
 set -o pipefail # Any command failed in the pipe fails the whole pipe
 # set -x # Print shell commands as they are executed (or you can try -v which is less verbose)
 
+# Don't forget to also update ./ShellParserGenerated/Package.swift
+export antlr_version="4.13.1"
+
 add-optional-dep-to-bin() {
     if /usr/bin/which "$1" &> /dev/null; then
         /bin/cat > ".deps/bin/${2:-$1}" <<EOF
@@ -39,6 +42,7 @@ swift() {
         swiftly run swift "$@"
     else
         echo "warning: swiftly is not installed. Fallback to plain swift. Swift compilation might not be reproducible" > /dev/stderr
+        /usr/bin/env swift --version
         /usr/bin/env swift "$@"
     fi
 }

@@ -6,7 +6,7 @@ extension Thread {
     func runInLoopAsync(
         job: RunLoopJob = RunLoopJob(),
         autoCheckCancelled: Bool = true,
-        _ body: @Sendable @escaping (RunLoopJob) -> ()
+        _ body: @Sendable @escaping (RunLoopJob) -> (),
     ) -> RunLoopJob {
         let action = RunLoopAction(job: job, autoCheckCancelled: autoCheckCancelled, body)
         // Alternative: CFRunLoopPerformBlock + CFRunLoopWakeUp
@@ -14,7 +14,6 @@ extension Thread {
         return job
     }
 
-    @MainActor // todo swift is stupid
     func runInLoop<T>(_ body: @Sendable @escaping (RunLoopJob) throws -> T) async throws -> T { // todo try to convert to typed throws
         try checkCancellation()
         let job = RunLoopJob()

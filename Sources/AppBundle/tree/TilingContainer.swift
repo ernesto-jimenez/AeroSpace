@@ -1,7 +1,7 @@
 import AppKit
 import Common
 
-class TilingContainer: TreeNode, NonLeafTreeNodeObject { // todo consider renaming to GenericContainer
+final class TilingContainer: TreeNode, NonLeafTreeNodeObject { // todo consider renaming to GenericContainer
     fileprivate var _orientation: Orientation
     var orientation: Orientation { _orientation }
     var layout: Layout
@@ -25,7 +25,6 @@ class TilingContainer: TreeNode, NonLeafTreeNodeObject { // todo consider renami
 }
 
 extension TilingContainer {
-    var ownIndex: Int? { parent?.children.firstIndex(of: self) }
     var isRootContainer: Bool { parent is Workspace }
 
     @MainActor

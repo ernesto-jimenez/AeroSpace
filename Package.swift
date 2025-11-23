@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -27,17 +27,17 @@ let package = Package(
     // Targets are the basic building blocks of a package, defining a module or a test suite.
     // Targets can depend on other targets in this package and products from dependencies.
     targets: [
-        // Exposes the prviate _AXUIElementGetWindow function to swift
+        // Exposes the private _AXUIElementGetWindow function to swift
         .target(
             name: "PrivateApi",
             path: "Sources/PrivateApi",
-            publicHeadersPath: "include"
+            publicHeadersPath: "include",
         ),
         .target(
             name: "Common",
             dependencies: [
                 .product(name: "Collections", package: "swift-collections"),
-            ]
+            ],
         ),
         .target(
             name: "AppBundle",
@@ -50,26 +50,29 @@ let package = Package(
                 .product(name: "TOMLKit", package: "TOMLKit"),
                 .target(name: "Common"),
                 .target(name: "PrivateApi"),
-            ]
+            ],
+            swiftSettings: [
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+            ],
         ),
         .executableTarget(
             name: "AeroSpaceApp",
             dependencies: [
                 .target(name: "AppBundle"),
-            ]
+            ],
         ),
         .executableTarget(
             name: "Cli",
             dependencies: [
                 .target(name: "Common"),
                 .product(name: "Socket", package: "BlueSocket"),
-            ]
+            ],
         ),
         .testTarget(
             name: "AppBundleTests",
             dependencies: [
                 .target(name: "AppBundle"),
-            ]
+            ],
         ),
-    ]
+    ],
 )

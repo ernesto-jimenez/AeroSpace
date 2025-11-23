@@ -1,21 +1,38 @@
 import AppKit
 import Common
 
-func dumpAx(_ ax: AXUIElement, _ kind: AxKind) -> [String: Json] {
+func dumpAxRecursive(_ ax: AXUIElement, _ kind: AxKind, recursionDepth: Int = 0) -> [String: Json] {
+    if recursionDepth > 5 {
+        return [
+            "dumpAxRecursive infinite recursion": .bool(true),
+            kAXAeroSynthetic: .bool(true),
+        ]
+    }
+    let recursionDepth = recursionDepth + 1
     var result: [String: Json] = [:]
     var ignored: [String] = []
-    for key: String in ax.attrs.sortedBy({ priorityAx.contains($0) ? 0 : 1 }) {
-        var raw: AnyObject?
-        AXUIElementCopyAttributeValue(ax, key as CFString, &raw)
+    var writable: [String] = []
+    var failedAxRequest: [String] = []
+    for key: String in ax.attrs(failedAxRequest: &failedAxRequest).sortedBy({ priorityAx.contains($0) ? 0 : 1 }) {
         if globalIgnore.contains(key) || kindSpecificIgnore[kind]?.contains(key) == true {
             ignored.append(key)
         } else {
-            result[key] = prettyValue(raw as Any?)
+            var raw: AnyObject?
+            if AXUIElementCopyAttributeValue(ax, key as CFString, &raw) != .success {
+                failedAxRequest.append("get.\(key)")
+            }
+            result[key] = prettyValue(raw as Any?, recursionDepth: recursionDepth)
+
+            var isWritable: DarwinBoolean = false
+            if AXUIElementIsAttributeSettable(ax, key as CFString, &isWritable) != .success {
+                failedAxRequest.append("isWritable.\(key)")
+            }
+            if isWritable.boolValue { writable.append(key) }
         }
     }
-    if !ignored.isEmpty {
-        result["Aero.AxIgnored"] = .string(ignored.joined(separator: ", "))
-    }
+    if !writable.isEmpty { result["Aero.AxWritable"] = .string(writable.joined(separator: ", ")) }
+    if !failedAxRequest.isEmpty { result["Aero.AxFailed"] = .string(failedAxRequest.joined(separator: ", ")) }
+    if !ignored.isEmpty { result["Aero.AxIgnored"] = .string(ignored.joined(separator: ", ")) }
     return result
 }
 
@@ -25,9 +42,9 @@ enum AxKind: Hashable {
     case app
 }
 
-private func prettyValue(_ value: Any?) -> Json {
+private func prettyValue(_ value: Any?, recursionDepth: Int) -> Json {
     if let arr = value as? [Any?] {
-        return .array(arr.map(prettyValue))
+        return .array(arr.map { prettyValue($0, recursionDepth: recursionDepth) })
     }
     if let value = value as? Int {
         return .int(value)
@@ -41,7 +58,7 @@ private func prettyValue(_ value: Any?) -> Json {
     if let value {
         let ax = value as! AXUIElement
         if ax.get(Ax.roleAttr) == kAXButtonRole {
-            return .dict(dumpAx(ax, .button))
+            return .dict(dumpAxRecursive(ax, .button, recursionDepth: recursionDepth))
         }
         if let windowId = ax.containingWindowId() {
             let title = ax.get(Ax.titleAttr)?.doubleQuoted ?? "nil"
@@ -54,10 +71,12 @@ private func prettyValue(_ value: Any?) -> Json {
     return .null
 }
 
-private extension AXUIElement {
-    var attrs: [String] {
+extension AXUIElement {
+    fileprivate func attrs(failedAxRequest: inout [String]) -> [String] {
         var rawArray: CFArray?
-        AXUIElementCopyAttributeNames(self, &rawArray)
+        if AXUIElementCopyAttributeNames(self, &rawArray) != .success {
+            failedAxRequest.append("AXUIElementCopyAttributeNames")
+        }
         return rawArray as? [String] ?? []
     }
 }
@@ -65,6 +84,7 @@ private extension AXUIElement {
 private let globalIgnore: Set<String> = [
     "AXChildren", // too verbose
     "AXChildrenInNavigationOrder", // too verbose
+    "AXFocusableAncestor", // infinite recursion
     kAXHelpAttribute, // localized - not helpful
     kAXRoleDescriptionAttribute, // localized - not helpful
 ]

@@ -1,16 +1,16 @@
 public struct BalanceSizesCmdArgs: CmdArgs {
-    public let rawArgs: EquatableNoop<[String]>
-    public init(rawArgs: [String]) { self.rawArgs = .init(rawArgs) }
+    public let rawArgsForStrRepr: EquatableNoop<StrArrSlice>
+    public init(rawArgs: StrArrSlice) { self.rawArgsForStrRepr = .init(rawArgs) }
     public static let parser: CmdParser<Self> = cmdParser(
         kind: .balanceSizes,
         allowInConfig: true,
         help: balance_sizes_help_generated,
-        options: [
+        flags: [
             "--workspace": optionalWorkspaceFlag(),
         ],
-        arguments: []
+        posArgs: [],
     )
 
-    public var windowId: UInt32?
-    public var workspaceName: WorkspaceName?
+    /*conforms*/ public var windowId: UInt32?
+    /*conforms*/ public var workspaceName: WorkspaceName?
 }

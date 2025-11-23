@@ -1,61 +1,66 @@
 public struct FocusMonitorCmdArgs: CmdArgs {
-    public let rawArgs: EquatableNoop<[String]>
-    fileprivate init(rawArgs: [String]) { self.rawArgs = .init(rawArgs) }
+    public let rawArgsForStrRepr: EquatableNoop<StrArrSlice>
+    fileprivate init(rawArgs: StrArrSlice) { self.rawArgsForStrRepr = .init(rawArgs) }
     public static let parser: CmdParser<Self> = cmdParser(
         kind: .focusMonitor,
         allowInConfig: true,
         help: focus_monitor_help_generated,
-        options: [
+        flags: [
             "--wrap-around": trueBoolFlag(\.wrapAround),
         ],
-        arguments: [newArgParser(\.target, parseTarget, mandatoryArgPlaceholder: "(left|down|up|right|next|prev|<monitor-pattern>)")]
+        posArgs: [newArgParser(\.target, parseTarget, mandatoryArgPlaceholder: MonitorTarget.cases.joinedCliArgs)],
     )
 
     public var wrapAround: Bool = false
     public var target: Lateinit<MonitorTarget> = .uninitialized
-    public var windowId: UInt32?
-    public var workspaceName: WorkspaceName?
+    /*conforms*/ public var windowId: UInt32?
+    /*conforms*/ public var workspaceName: WorkspaceName?
 }
 
-public func parseFocusMonitorCmdArgs(_ args: [String]) -> ParsedCmd<FocusMonitorCmdArgs> {
+public func parseFocusMonitorCmdArgs(_ args: StrArrSlice) -> ParsedCmd<FocusMonitorCmdArgs> {
     parseSpecificCmdArgs(FocusMonitorCmdArgs(rawArgs: args), args)
         .filter("--wrap-around is incompatible with <monitor-pattern> argument") { !$0.wrapAround || !$0.target.val.isPatterns }
 }
 
-func parseTarget(_ arg: String, _ nextArgs: inout [String]) -> Parsed<MonitorTarget> {
-    switch arg {
+func parseTarget(i: ArgParserInput) -> ParsedCliArgs<MonitorTarget> {
+    switch i.arg {
         case "next":
-            return .success(.relative(.next))
+            return .succ(.relative(.next), advanceBy: 1)
         case "prev":
-            return .success(.relative(.prev))
+            return .succ(.relative(.prev), advanceBy: 1)
         case "left":
-            return .success(.directional(.left))
+            return .succ(.direction(.left), advanceBy: 1)
         case "down":
-            return .success(.directional(.down))
+            return .succ(.direction(.down), advanceBy: 1)
         case "up":
-            return .success(.directional(.up))
+            return .succ(.direction(.up), advanceBy: 1)
         case "right":
-            return .success(.directional(.right))
+            return .succ(.direction(.right), advanceBy: 1)
         default:
-            let args: [String] = [arg] + nextArgs.allNextNonFlagArgs()
-            return args.mapAllOrFailure(parseMonitorDescription).map { .patterns($0) }
+            let args = i.nonFlagArgs()
+            return .init(args.mapAllOrFailure(parseMonitorDescription).map { .patterns($0) }, advanceBy: args.count)
     }
 }
 
-public enum NextPrev: Equatable, Sendable {
-    case next, prev
-}
-
 public enum MonitorTarget: Equatable, Sendable {
-    case directional(CardinalDirection)
+    case direction(CardinalDirection)
     case relative(NextPrev)
     case patterns([MonitorDescription])
 
     var isPatterns: Bool {
-        if case .patterns = self {
-            return true
-        } else {
-            return false
+        switch self {
+            case .patterns: true
+            default: false
+        }
+    }
+
+    static var casesExceptPatterns: [String] { CardinalDirection.cliArgsCases + NextPrev.cliArgsCases }
+    static var cases: [String] { casesExceptPatterns + ["<monitor-pattern>"] }
+
+    public var directionOrNil: CardinalDirection? {
+        switch self {
+            case .direction(let direction): direction
+            default: nil
         }
     }
 }

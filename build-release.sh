@@ -12,13 +12,6 @@ while test $# -gt 0; do
     esac
 done
 
-generate-git-hash() {
-cat > Sources/Common/gitHashGenerated.swift <<EOF
-public let gitHash = "$(git rev-parse HEAD)"
-public let gitShortHash = "$(git rev-parse --short HEAD)"
-EOF
-}
-
 #############
 ### BUILD ###
 #############
@@ -28,10 +21,9 @@ EOF
 
 ./generate.sh
 ./script/check-uncommitted-files.sh
-./generate.sh --build-version "$build_version" --codesign-identity "$codesign_identity"
+./generate.sh --build-version "$build_version" --codesign-identity "$codesign_identity" --generate-git-hash
 
-generate-git-hash
-swift build -c release --arch arm64 --arch x86_64 --product aerospace # CLI
+swift build -c release --arch arm64 --arch x86_64 --product aerospace -Xswiftc -warnings-as-errors # CLI
 
 # todo: make xcodebuild use the same toolchain as swift
 # toolchain="$(plutil -extract CFBundleIdentifier raw ~/Library/Developer/Toolchains/swift-6.1-RELEASE.xctoolchain/Info.plist)"
@@ -132,7 +124,6 @@ cd -
 for cask_name in aerospace aerospace-dev; do
     ./script/build-brew-cask.sh \
         --cask-name "$cask_name" \
-        --app-bundle-dir-name "AeroSpace.app" \
         --zip-uri ".release/AeroSpace-v$build_version.zip" \
         --build-version "$build_version"
 done
